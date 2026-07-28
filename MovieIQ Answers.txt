@@ -1,0 +1,145 @@
+STAGE 0 – Problem Statement
+1. What makes a movie “successful” in this project?
+A movie is considered successful when its revenue is strictly greater than its budget.
+Exact rule used:
+success = 1 if revenue > budget else 0
+2. Why is predicting film success valuable?
+
+Film studios / producers: Helps decide whether to green-light a project or adjust budget and marketing strategy before production.
+Investors / financiers: Allows better risk assessment and capital allocation toward projects with higher predicted probability of commercial success.
+
+3. Objective and concrete steps
+Objective: Build an interactive system that predicts whether a movie will be commercially successful and explains the key drivers.
+Steps taken:
+
+Cleaned the data and created the binary success label.
+Performed exploratory data analysis and statistical tests.
+Trained a Random Forest classifier and evaluated its performance.
+Wrapped the entire analysis into a deployable Streamlit dashboard.
+
+4. Classification problem
+This is a binary classification problem because the target variable has two discrete classes (success / failure).
+The target variable is the column success (1 = revenue > budget, 0 otherwise).
+
+STAGE 1 – Data Preparation
+1. Load the dataset
+
+Rows: 2000
+Columns: 7
+Summary statistics (numeric fields) were printed and examined.
+
+2. Missing values and zeros
+
+No missing values in any column.
+Zero budget: 0
+Zero revenue: 0
+A budget or revenue of 0 is problematic because it usually means the value was not reported. Keeping such rows would create false “failures”. In this dataset none existed after initial filtering.
+
+3. Target column and class balance
+
+Success rate: 80.7%
+Class balance: Success = 80.7%, Failure = 19.3%
+The dataset is imbalanced toward successful movies.
+
+4. Genres processing
+The genres column contained JSON-like strings.
+I extracted the list of genre names using ast.literal_eval and created two new columns:
+
+genre_list → full list of genres
+primary_genre → first genre (used for filtering and Chi-square test)
+
+
+STAGE 2 – Exploratory Data Analysis
+1. Budget vs Revenue
+There is a clear positive relationship: higher budgets tend to earn higher revenue. However, many high-budget films still fall below the break-even line, showing that large budgets do not guarantee success.
+2. Genre trends
+Most common genres: Romance, Adventure, Science Fiction, Animation, Comedy.
+Success rates across top genres are relatively similar (mostly 75–82%). No single genre strongly dominates commercial success.
+3. Popularity, runtime, vote_average vs success
+
+Popularity shows the clearest positive association with success.
+Vote average shows a milder positive association.
+Runtime distributions of successful and unsuccessful movies largely overlap → weakest association.
+
+4. Correlation heatmap
+
+Strongest correlation: Budget ↔ Revenue (0.76)
+Success ↔ Revenue (0.37) – expected because success is derived from revenue.
+Popularity, runtime and vote_average have very weak linear correlation with success.
+Modelling concern: Revenue must never be used as a feature (data leakage).
+
+
+STAGE 3 – Statistical Testing
+1. T-Test (popularity)
+
+Null hypothesis (H₀): Mean popularity is the same for successful and unsuccessful movies.
+Result: t = 2.062, p = 0.0397
+Conclusion: Reject H₀ (p < 0.05). Successful movies have significantly higher popularity.
+
+2. Chi-Square test (primary genre)
+
+Null hypothesis (H₀): Genre and success are independent.
+Result: χ² = 1.8, p = 0.995
+Conclusion: Fail to reject H₀. There is no statistically significant association between primary genre and success in this dataset.
+
+3. Meaning of p-value
+A p-value is the probability of observing the data (or more extreme results) if the null hypothesis is true.
+I used the conventional significance threshold α = 0.05.
+
+STAGE 4 – Predictive Modeling (Random Forest)
+1. Features and target
+
+Features used: budget, popularity, runtime, vote_average
+Excluded:
+title → unique text, not useful for prediction
+revenue → would cause data leakage
+Full genre list → would require multi-hot encoding (kept simple for this project)
+
+
+2. Train-test split
+
+Split ratio: 80% train / 20% test (stratified)
+A separate test set is important to evaluate how the model performs on unseen data and to avoid overfitting.
+
+3. How a Random Forest works
+A Random Forest builds many decision trees on random subsets of rows and features. Each tree votes for a class, and the majority vote becomes the final prediction. This reduces overfitting compared to a single decision tree.
+4. Model evaluation
+
+Accuracy: 0.645
+Precision: 0.811
+Recall: 0.731
+Confusion Matrix:text[[ 22  55]
+ [ 87 236]]
+
+The model is reasonably good at identifying successful movies but weaker at correctly identifying failures (due to class imbalance).
+5. Feature importance
+Ranking:
+
+Popularity (0.268)
+Budget (0.261)
+Vote Average (0.257)
+Runtime (0.214)
+
+This agrees with the EDA and the T-test: popularity and budget are the strongest drivers.
+
+STAGE 5 – Streamlit Dashboard & Deployment
+1–3.
+An interactive Streamlit dashboard was built with:
+
+Sidebar filters for genre and minimum vote average
+Multiple EDA charts with written insights
+Statistical test results
+Model performance metrics and feature importance
+Live prediction form where users can input budget, popularity, runtime and vote average
+
+4.
+requirements.txt was created and the app runs cleanly with:
+streamlit run MovieIQ.py
+5. (Bonus)
+The app can be deployed on Streamlit Community Cloud.
+(If you deploy it, paste the live link here.)
+
+Reflection
+If a studio asked “Will our next film succeed?”, I would treat MovieIQ’s answer as a useful directional signal, not a definitive yes/no.
+Limitation: The model only uses four numeric features and ignores important real-world drivers such as marketing spend, star power, release timing, and competition.
+Improvement with more time: I would add multi-hot encoding for genres, external marketing and cast data, and use a temporal train-test split (train on older films, test on recent ones) to make the model more realistic.
